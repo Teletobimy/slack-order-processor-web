@@ -48,7 +48,6 @@ Thumbs.db
 config.json
 output/
 *.xlsx
-*.json
 slack_channel_history.json
 
 # Build files

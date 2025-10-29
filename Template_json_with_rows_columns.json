@@ -1,0 +1,30 @@
+{
+  "source_file": "Template.xlsx",
+  "generated_at": "2025-10-28T01:37:09.926479",
+  "note": "All cell values are strings; NaN/None -> '' (empty string). Row numbers start at 1 (header not counted).",
+  "sheets": [
+    {
+      "sheet_name": "주문서입력",
+      "columns": 
+        {
+          "A": "일자",
+          "B": "순번",
+          "C": "거래처코드",
+          "D": "거래처명",
+          "E": "출하창고",
+          "F": "담당자",
+          "G": "품목코드",
+          "H": "품목명",
+          "I": "규격",
+          "J": "수량",
+          "K": "사용유형",
+          "L": "적요"
+        }
+      ,
+      "row_count": 0,
+      "row_numbers": [],
+      "data": [],
+      "records": []
+    }
+  ]
+}
