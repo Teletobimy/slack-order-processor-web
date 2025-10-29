@@ -227,12 +227,32 @@ def main():
                     progress_bar = st.progress(0)
                     status_text = st.empty()
                     
+                    # 0단계: Slack API 연결 테스트
+                    status_text.text("Slack API 연결 테스트 중...")
+                    progress_bar.progress(10)
+                    
+                    # API 연결 테스트
+                    test_result = slack_fetcher.test_api_connection()
+                    if test_result['success']:
+                        st.success(f"✅ Slack API 연결 성공: {test_result['message']}")
+                    else:
+                        st.error(f"❌ Slack API 연결 실패: {test_result['message']}")
+                        st.stop()
+                    
                     # 1단계: Slack 데이터 수집
                     status_text.text("Slack 메시지 수집 중...")
                     progress_bar.progress(20)
                     
                     messages = slack_fetcher.fetch_messages(start_date, end_date)
                     st.write(f"📊 수집된 메시지 수: {len(messages) if messages else 0}")
+                    
+                    if not messages:
+                        st.warning("⚠️ 메시지가 수집되지 않았습니다. 다음을 확인해주세요:")
+                        st.write("1. Slack Bot Token이 올바른지 확인")
+                        st.write("2. 채널 ID가 정확한지 확인")
+                        st.write("3. Bot이 해당 채널에 초대되었는지 확인")
+                        st.write("4. 해당 날짜 범위에 메시지가 있는지 확인")
+                        st.stop()
                     
                     processed_messages = slack_fetcher.process_messages_with_threads(messages)
                     st.write(f"📊 처리된 메시지 수: {len(processed_messages) if processed_messages else 0}")

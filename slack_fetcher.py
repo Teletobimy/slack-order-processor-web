@@ -53,6 +53,44 @@ class SlackFetcher:
         
         return start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')
     
+    def test_api_connection(self) -> Dict[str, Any]:
+        """
+        Slack API 연결 테스트
+        """
+        try:
+            # 채널 정보 조회로 API 연결 테스트
+            response = requests.get(
+                "https://slack.com/api/conversations.info",
+                headers=self.headers,
+                params={"channel": self.channel_id}
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            if data.get("ok"):
+                channel_info = data.get("channel", {})
+                return {
+                    "success": True,
+                    "message": f"채널 '{channel_info.get('name', 'Unknown')}' 접근 가능"
+                }
+            else:
+                error = data.get("error", "Unknown error")
+                return {
+                    "success": False,
+                    "message": f"API 오류: {error}"
+                }
+                
+        except requests.exceptions.RequestException as e:
+            return {
+                "success": False,
+                "message": f"네트워크 오류: {str(e)}"
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"예상치 못한 오류: {str(e)}"
+            }
+    
     def fetch_messages(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
         """
         지정된 날짜 범위의 메시지들을 가져옴
