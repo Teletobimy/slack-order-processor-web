@@ -142,15 +142,8 @@ def main():
                     help="출하창고 코드 (기본값: 100)"
                 )
             
-            # 입력된 값들을 세션 상태에 저장
-            if slack_bot_token:
-                st.session_state.slack_bot_token = slack_bot_token
-            if slack_channel_id:
-                st.session_state.slack_channel_id = slack_channel_id
-            if openai_api_key:
-                st.session_state.openai_api_key = openai_api_key
-            if warehouse_code:
-                st.session_state.warehouse_code = warehouse_code
+            # 입력된 값들을 변수로 저장 (세션 상태는 자동으로 관리됨)
+            # st.text_input의 key 매개변수가 자동으로 세션 상태를 관리합니다
             
             # 설정 확인 버튼
             if st.button("✅ 설정 확인", type="primary"):
