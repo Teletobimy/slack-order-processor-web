@@ -144,6 +144,13 @@ def main():
             
             # 설정 확인 버튼
             if st.button("✅ 설정 확인", type="primary"):
+                # 디버깅: 세션 상태 확인
+                st.write("**디버깅 정보:**")
+                st.write(f"Slack Bot Token: {'설정됨' if st.session_state.get('slack_bot_token') else '없음'}")
+                st.write(f"Channel ID: {'설정됨' if st.session_state.get('slack_channel_id') else '없음'}")
+                st.write(f"OpenAI API Key: {'설정됨' if st.session_state.get('openai_api_key') else '없음'}")
+                st.write(f"Warehouse Code: {st.session_state.get('warehouse_code', '없음')}")
+                
                 # 다시 설정 확인
                 missing_keys = check_config()
                 if not missing_keys:
