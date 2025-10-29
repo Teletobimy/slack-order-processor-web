@@ -205,7 +205,7 @@ def main():
                 status_text.text("📄 Excel 파일 생성 중...")
                 progress_bar.progress(80)
                 
-                generator = ExcelGenerator()
+                generator = ExcelGenerator(config)
                 
                 # 임시 디렉토리에 파일 생성
                 with tempfile.TemporaryDirectory() as temp_dir:

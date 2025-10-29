@@ -8,10 +8,16 @@ from typing import Dict, List, Any, Optional
 import os
 
 class ExcelGenerator:
-    def __init__(self, config_path: str = "config.json"):
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
         """Excel 생성 클래스 초기화"""
-        with open(config_path, 'r', encoding='utf-8') as f:
-            self.config = json.load(f)
+        if config is None:
+            # 환경 변수에서 설정 로드
+            self.config = {
+                "template": "Template_json_with_rows_columns.json",
+                "warehouse_code": os.getenv("WAREHOUSE_CODE", "100")
+            }
+        else:
+            self.config = config
         
         # Template 구조 로드
         self.template_structure = self.load_template_structure()
