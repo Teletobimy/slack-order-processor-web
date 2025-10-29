@@ -304,7 +304,11 @@ def main():
             
             # 브랜드 순서 정의 (피더린, 탐뷰티, 바루랩)
             brand_order = ['피더린', '탐뷰티', '바루랩']
-            sorted_brands = [b for b in brand_order if b in products_by_brand] + [b for b in brands if b not in brand_order]
+            # 모든 브랜드를 항상 표시 (매칭되지 않았어도 수동 추가 가능)
+            for brand in brand_order:
+                if brand not in products_by_brand:
+                    products_by_brand[brand] = []
+            sorted_brands = brand_order + [b for b in brands if b not in brand_order]
             
             # 제품 추가용 세션 상태 초기화
             if 'manual_products' not in st.session_state:
@@ -379,6 +383,10 @@ def main():
                             # 신뢰도
                             with cols[5]:
                                 st.write(f"{product['신뢰도']}%")
+                    else:
+                        # 매칭된 제품이 없을 때 안내 메시지
+                        if not manual_products:
+                            st.info(f"💡 {brand} 브랜드에서 매칭된 제품이 없습니다. 아래 버튼을 눌러 제품을 수동으로 추가할 수 있습니다.")
                     
                     st.markdown("---")
                     
