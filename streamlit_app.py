@@ -38,7 +38,7 @@ def setup_console_encoding():
 # 설정 로드
 @st.cache_data
 def load_config():
-    """설정 파일 로드 (환경 변수 우선)"""
+    """설정 로드 (환경 변수만 사용)"""
     try:
         # 환경 변수에서 설정 로드
         config = {
@@ -48,11 +48,14 @@ def load_config():
             "warehouse_code": os.getenv("WAREHOUSE_CODE", "100")
         }
         
-        # 환경 변수가 없으면 파일에서 로드
-        if not all(config.values()):
-            with open("config.json", 'r', encoding='utf-8') as f:
-                file_config = json.load(f)
-                config.update(file_config)
+        # 필수 환경 변수 확인
+        required_vars = ["slack_bot_token", "channel_id", "openai_api_key"]
+        missing_vars = [var for var in required_vars if not config.get(var)]
+        
+        if missing_vars:
+            st.error(f"다음 환경 변수가 설정되지 않았습니다: {', '.join(missing_vars)}")
+            st.info("Streamlit Cloud에서 환경 변수를 설정해주세요.")
+            return None
         
         return config
     except Exception as e:
@@ -78,7 +81,19 @@ def main():
     # 설정 로드
     config = load_config()
     if not config:
-        st.error("설정 파일을 확인해주세요.")
+        st.error("환경 변수가 설정되지 않았습니다.")
+        st.markdown("""
+        ### 🔧 환경 변수 설정 방법
+        
+        Streamlit Cloud에서 다음 환경 변수를 설정해주세요:
+        
+        1. **SLACK_BOT_TOKEN**: Slack Bot Token (xoxb-로 시작)
+        2. **OPENAI_API_KEY**: OpenAI API Key (sk-로 시작)  
+        3. **CHANNEL_ID**: Slack 채널 ID (C로 시작)
+        4. **WAREHOUSE_CODE**: 창고 코드 (기본값: 100)
+        
+        환경 변수 설정 후 페이지를 새로고침해주세요.
+        """)
         return
     
     products_db = load_products_db()
