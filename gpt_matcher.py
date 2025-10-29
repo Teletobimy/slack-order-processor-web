@@ -25,6 +25,13 @@ class GPTMatcher:
         # 제품 데이터베이스 로드
         self.products_db = self.load_products_db(config.get('products_db', 'products_map.json'))
         
+        # 담당자-브랜드 매핑 (우선순위 낮음, 참고용 힌트만)
+        self.user_brand_mapping = {
+            "김다연": "바루랩",
+            "이유주": "탐뷰티",
+            "이승학": "피더린"
+        }
+        
     def load_products_db(self, db_path: str) -> Dict[str, Dict[str, str]]:
         """제품 데이터베이스 로드 (브랜드별 구조)"""
         try:
@@ -197,6 +204,127 @@ class GPTMatcher:
         except Exception as e:
             print(f"제품 매칭 API 오류: {e}")
             return None
+    
+    def extract_brand_hint_from_text(self, text: str) -> Optional[str]:
+        """
+        텍스트에서 브랜드 힌트 추출
+        """
+        # 브랜드명이 직접 언급된 경우
+        brands = ["피더린", "바루랩", "탐뷰티", "탐 뷰티"]
+        for brand in brands:
+            if brand in text:
+                return brand
+        
+        return None
+    
+    def match_products_with_context(self, full_text: str, message_info: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        RAG 방식: 전체 메시지 문맥을 활용한 제품 매칭
+        """
+        # 1. 브랜드 힌트 추출
+        brand_hint = self.extract_brand_hint_from_text(full_text)
+        
+        # 2. 담당자 브랜드 힌트 추출 (우선순위 낮음)
+        user_hint = None
+        if "user" in message_info:
+            user_name = message_info["user"].get("real_name", "")
+            if user_name in self.user_brand_mapping:
+                user_hint = self.user_brand_mapping[user_name]
+        
+        # 3. 제품 데이터베이스 필터링
+        relevant_products = {}
+        if brand_hint and brand_hint in self.products_db:
+            relevant_products[brand_hint] = self.products_db[brand_hint]
+        else:
+            relevant_products = self.products_db
+        
+        # 4. GPT 매칭 프롬프트 생성
+        brand_filter = ""
+        if brand_hint:
+            brand_filter = f"\n⚠️ 중요: 이 메시지에서 '{brand_hint}' 브랜드가 명시되었습니다. 반드시 '{brand_hint}' 브랜드 내에서만 매칭해주세요."
+        if user_hint and user_hint != brand_hint:
+            brand_filter += f"\n참고: 담당자는 '{user_hint}' 브랜드를 맡습니다. (우선순위 낮음)"
+        
+        prompt = f"""
+다음 메시지에서 요청된 제품들을 추출하고, 제품 데이터베이스에서 매칭해주세요.
+
+메시지: "{full_text[:1000]}"
+
+제품 데이터베이스:
+{json.dumps(relevant_products, ensure_ascii=False, indent=2)}
+
+응답 형식:
+{{
+  "products": [
+    {{
+      "product_name": "제품명 (용량 포함)",
+      "quantity": 수량,
+      "unit": "단위",
+      "capacity": "용량 (예: 1ml, 30ml, 150g 등)",
+      "품목코드": "매칭된 품목코드",
+      "제품명": "데이터베이스의 정확한 제품명",
+      "브랜드": "브랜드명",
+      "confidence": 신뢰도 (0-100),
+      "matched_capacity": true/false
+    }}
+  ],
+  "ambiguous": [모호한 제품들이 있다면 배열로 반환]
+}}
+
+규칙:
+1. 제품명과 수량을 정확히 추출
+2. 용량 정보가 있으면 반드시 포함 (예: 1ml, 30ml, 150g)
+3. 용량이 데이터베이스와 일치하면 matched_capacity=true, 아니면 false
+4. 용량이 다르면 confidence를 50 미만으로 설정
+5. 브랜드가 명시되면 해당 브랜드만 검색
+6. 모호한 경우 모든 가능한 후보를 ambiguous 배열에 추가
+{brand_filter}
+7. JSON만 응답하고 다른 설명은 하지 마세요
+"""
+        
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "당신은 제품 매칭 전문가입니다. 문맥을 정확히 이해하고 매칭해주세요."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.1,
+                max_tokens=2000
+            )
+            
+            content = response.choices[0].message.content.strip()
+            
+            # JSON 파싱
+            try:
+                if "```json" in content:
+                    content = content.split("```json")[1].split("```")[0].strip()
+                elif "```" in content:
+                    content = content.split("```")[1].strip()
+                
+                result = json.loads(content)
+                
+                # 결과 정제
+                matched_products = result.get("products", [])
+                ambiguous_products = result.get("ambiguous", [])
+                
+                # 각 제품에 ambiguous 플래그 추가
+                for product in matched_products:
+                    product["ambiguous"] = any(
+                        amb.get("product_name") == product.get("product_name")
+                        for amb in ambiguous_products
+                    )
+                
+                return matched_products
+                
+            except json.JSONDecodeError as e:
+                print(f"JSON 파싱 오류: {e}")
+                print(f"응답 내용: {content}")
+                return []
+                
+        except Exception as e:
+            print(f"RAG 매칭 API 오류: {e}")
+            return []
     
     def generate_summary(self, message_text: str, products: List[Dict[str, Any]]) -> str:
         """

@@ -235,57 +235,83 @@ def main():
                     st.subheader("발견된 브랜드")
                     st.write(brands)
                 
-                # 4. Excel 생성
-                status_text.text("📄 Excel 파일 생성 중...")
-                progress_bar.progress(80)
+                # 4. 검증 화면
+                st.markdown("---")
+                st.subheader("📝 제품 매칭 확인")
                 
-                generator = ExcelGenerator(config)
+                # 모호한 제품 표시
+                ambiguous_products = aggregated_data.get("ambiguous_products", [])
+                if ambiguous_products:
+                    st.warning(f"⚠️ {len(ambiguous_products)}개 제품이 모호합니다. 확인이 필요합니다.")
+                    st.write("**모호한 제품 목록:**")
+                    for i, product in enumerate(ambiguous_products, 1):
+                        with st.expander(f"제품 {i}: {product.get('product_name', '알 수 없음')}"):
+                            st.write(f"- 요청 제품: {product.get('product_name', '')}")
+                            st.write(f"- 수량: {product.get('quantity', 0)} {product.get('unit', '')}")
+                            st.write(f"- 용량: {product.get('capacity', '미기재')}")
+                            st.write(f"- 신뢰도: {product.get('confidence', 0)}%")
+                            
+                            # 사용자 선택
+                            key = f"ambiguous_choice_{i}"
+                            selected = st.radio(
+                                "이 제품이 맞습니까?",
+                                options=["매칭 유지", "제외"],
+                                key=key,
+                                index=0
+                            )
+                            if selected == "제외":
+                                # 제품 제외 로직 (나중에 구현)
+                                pass
+                else:
+                    st.success("✅ 모든 제품이 명확하게 매칭되었습니다.")
                 
-                # 임시 디렉토리에 파일 생성
-                with tempfile.TemporaryDirectory() as temp_dir:
-                    created_files = generator.create_excel_files_by_brand(aggregated_data, temp_dir)
+                # 정상 매칭된 제품 요약
+                st.write("**매칭된 제품 요약:**")
+                for brand in brands:
+                    with st.expander(f"{brand} 브랜드 ({len(aggregated_by_brand.get(brand, []))}개 제품)"):
+                        for product in aggregated_by_brand.get(brand, []):
+                            st.write(f"- {product.get('제품명', '')} × {product.get('총_수량', 0)}개")
+                
+                # 최종 확인 버튼
+                if st.button("✅ 최종 확인 및 Excel 생성", type="primary"):
+                    progress_bar.progress(80)
+                    status_text.text("📄 Excel 파일 생성 중...")
                     
-                    if created_files:
-                        progress_bar.progress(100)
-                        status_text.text("✅ 처리 완료!")
+                    # 5. Excel 생성
+                    generator = ExcelGenerator(config)
+                    
+                    # 임시 디렉토리에 파일 생성
+                    with tempfile.TemporaryDirectory() as temp_dir:
+                        created_files = generator.create_excel_files_by_brand(aggregated_data, temp_dir)
                         
-                        # 결과 표시
-                        st.header("📋 처리 결과")
-                        
-                        # 브랜드별 결과 표시
-                        for brand_name, products in aggregated_by_brand.items():
-                            with st.expander(f"🏷️ {brand_name} 브랜드 ({len(products)}개 제품)"):
-                                df = pd.DataFrame(products)
-                                st.dataframe(
-                                    df[['제품명', '품목코드', '총_수량', '신뢰도']],
-                                    use_container_width=True
-                                )
-                        
-                        # 파일 다운로드
-                        st.header("📥 파일 다운로드")
-                        
-                        if len(created_files) == 1:
-                            # 단일 파일
-                            file_path = created_files[0]
-                            with open(file_path, 'rb') as f:
-                                st.download_button(
-                                    label=f"📄 {os.path.basename(file_path)} 다운로드",
-                                    data=f.read(),
-                                    file_name=os.path.basename(file_path),
-                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                                )
-                        else:
-                            # 여러 파일 - ZIP으로 압축
+                        if created_files:
+                            progress_bar.progress(100)
+                            status_text.text("✅ 완료!")
+                            
+                            # ZIP 파일 생성
                             zip_buffer = BytesIO()
                             with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
                                 for file_path in created_files:
                                     zip_file.write(file_path, os.path.basename(file_path))
-                            
                             zip_buffer.seek(0)
+                            
                             st.download_button(
-                                label=f"📦 모든 파일 다운로드 ({len(created_files)}개)",
-                                data=zip_buffer.getvalue(),
-                                file_name=f"slack_orders_{start_date}_{end_date}.zip",
+                                label="📥 Excel 파일 다운로드 (ZIP)",
+                                data=zip_buffer,
+                                file_name=f"출고_데이터_{start_date}_{end_date}.zip",
+                                mime="application/zip"
+                            )
+                            
+                            # 미리보기
+                            for file_path in created_files:
+                                st.write(f"✅ {os.path.basename(file_path)} 생성 완료")
+                        else:
+                            st.error("Excel 파일 생성 실패")
+                    
+                    progress_bar.empty()
+                    status_text.empty()
+                
+                return
                                 mime="application/zip"
                             )
                     else:

@@ -48,34 +48,49 @@ class DataAggregator:
     
     def aggregate_products(self, processed_messages: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
-        모든 메시지에서 제품 정보를 집계
+        모든 메시지에서 제품 정보를 집계 (RAG 방식 사용)
         """
         print("제품 정보 집계 시작...")
         
         all_products = []
+        ambiguous_products = []
         thread_summaries = []
         
         for i, message_data in enumerate(processed_messages):
             print(f"메시지 처리 중: {i+1}/{len(processed_messages)}")
             
-            # 텍스트 메시지에서 제품 추출
-            text_products = self.gpt_matcher.process_message_thread(message_data)
-            all_products.extend(text_products)
+            # RAG 방식: 전체 메시지 문맥 활용
+            original_message = message_data.get("original_message", {})
+            replies = message_data.get("replies", [])
             
-            # Excel 파일에서 제품 추출
+            # 전체 텍스트 조합
+            full_text = original_message.get("text", "")
+            for reply in replies:
+                full_text += " " + reply.get("text", "")
+            
+            if full_text.strip():
+                # RAG 매칭 사용
+                rag_products = self.gpt_matcher.match_products_with_context(full_text, original_message.get("user", {}))
+                
+                for product in rag_products:
+                    # ambiguous 분리
+                    if product.get("ambiguous", False):
+                        ambiguous_products.append(product)
+                    else:
+                        all_products.append(product)
+            
+            # Excel 파일 처리 (기존 방식 유지)
             downloaded_files = message_data.get("downloaded_files", [])
             if downloaded_files:
                 excel_products = self.process_excel_files(downloaded_files)
                 all_products.extend(excel_products)
             
             # 스레드 요약 생성
-            if text_products or downloaded_files:
-                original_text = message_data.get("original_message", {}).get("text", "")
-                thread_summary = self.gpt_matcher.generate_summary(original_text, text_products)
+            if all_products:
                 thread_summaries.append({
                     "thread_index": i,
-                    "summary": thread_summary,
-                    "product_count": len(text_products) + len(downloaded_files)
+                    "summary": "출고 처리",
+                    "product_count": len([p for p in all_products if "thread_index" not in p])
                 })
         
         # 브랜드별, 제품별 수량 집계
@@ -83,6 +98,7 @@ class DataAggregator:
         
         return {
             "aggregated_by_brand": aggregated_by_brand,
+            "ambiguous_products": ambiguous_products,
             "thread_summaries": thread_summaries,
             "total_products": len(all_products),
             "unique_products": sum(len(products) for products in aggregated_by_brand.values()),
