@@ -96,5 +96,3 @@ def test_today_data():
 
 if __name__ == "__main__":
     test_today_data()
-
-

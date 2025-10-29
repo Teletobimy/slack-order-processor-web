@@ -96,5 +96,3 @@ def test_brand_based_system():
 
 if __name__ == "__main__":
     test_brand_based_system()
-
-

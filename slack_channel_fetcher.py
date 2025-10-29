@@ -2,19 +2,16 @@ import requests
 import json
 
 # --- Configuration ---
-# WARNING: API keys should be provided via environment variables or secure configuration
-# This file is deprecated - use slack_fetcher.py instead
-import os
-
-# Try to get from environment variables
-ACCESS_TOKEN = os.getenv('SLACK_BOT_TOKEN', '')
-CHANNEL_ID = os.getenv('SLACK_CHANNEL_ID', 'C01AA471D46')
+# WARNING: It is strongly recommended to use environment variables or a secure
+# configuration file to store your token instead of hardcoding it in the script.
+ACCESS_TOKEN = "xoxb-your-slack-bot-token"  # Bot Token
+CHANNEL_ID = "C01AA471D46"  # 원래 목표 채널: #1-비타민 (Bot을 채널에 초대 필요)
 API_URL = "https://slack.com/api/conversations.history"
 
 # --- Headers for the API Request ---
 headers = {
     "Authorization": f"Bearer {ACCESS_TOKEN}"
-} if ACCESS_TOKEN else {}
+}
 
 # --- Parameters for the API Request ---
 params = {

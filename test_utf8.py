@@ -1,17 +1,38 @@
 # -*- coding: utf-8 -*-
 """
-브랜드별 시스템 간단 테스트 (이모지 제거)
+브랜드별 시스템 테스트 (UTF-8 인코딩 적용)
 """
 
+import sys
+import os
 import json
 from datetime import datetime
 from slack_fetcher import SlackFetcher
 from aggregator import DataAggregator
 from excel_generator import ExcelGenerator
-import os
 
-def test_brand_system_simple():
-    """브랜드별 시스템 간단 테스트"""
+def setup_console_encoding():
+    """콘솔 인코딩 설정"""
+    try:
+        # Windows 콘솔 인코딩 설정
+        if sys.platform.startswith('win'):
+            os.system('chcp 65001 > nul')
+            
+            # stdout, stderr 인코딩 설정
+            if hasattr(sys.stdout, 'reconfigure'):
+                sys.stdout.reconfigure(encoding='utf-8')
+            if hasattr(sys.stderr, 'reconfigure'):
+                sys.stderr.reconfigure(encoding='utf-8')
+        
+        print("✅ 콘솔 인코딩 설정 완료")
+        return True
+        
+    except Exception as e:
+        print(f"❌ 콘솔 인코딩 설정 실패: {e}")
+        return False
+
+def test_brand_system_utf8():
+    """브랜드별 시스템 테스트 (UTF-8)"""
     print("=== 브랜드별 시스템 테스트 ===")
     
     try:
@@ -96,4 +117,5 @@ def test_brand_system_simple():
         return False
 
 if __name__ == "__main__":
-    test_brand_system_simple()
+    setup_console_encoding()
+    test_brand_system_utf8()

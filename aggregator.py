@@ -7,10 +7,10 @@ from excel_parser import ExcelParser
 from gpt_matcher import GPTMatcher
 
 class DataAggregator:
-    def __init__(self, config_path: str = "config.json", api_keys: Optional[Dict] = None):
+    def __init__(self, config_path: str = "config.json"):
         """데이터 집계 클래스 초기화"""
         self.excel_parser = ExcelParser()
-        self.gpt_matcher = GPTMatcher(config_path, api_keys)
+        self.gpt_matcher = GPTMatcher(config_path)
         
     def process_excel_files(self, downloaded_files: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
@@ -81,14 +81,8 @@ class DataAggregator:
         # 브랜드별, 제품별 수량 집계
         aggregated_by_brand = self.aggregate_by_brand_and_product(all_products)
         
-        # 리포트용 플랫 리스트 생성
-        aggregated_products = []
-        for brand_name, products in aggregated_by_brand.items():
-            aggregated_products.extend(products)
-        
         return {
             "aggregated_by_brand": aggregated_by_brand,
-            "aggregated_products": aggregated_products,  # 리포트용 추가
             "thread_summaries": thread_summaries,
             "total_products": len(all_products),
             "unique_products": sum(len(products) for products in aggregated_by_brand.values()),
@@ -153,12 +147,12 @@ class DataAggregator:
         
         # 통계 계산
         total_quantity = sum(p["총_수량"] for p in products)
-        avg_confidence = sum(float(p["신뢰도"]) for p in products) / len(products) if products else 0
+        avg_confidence = sum(p["신뢰도"] for p in products) / len(products) if products else 0
         
         # 신뢰도별 분포
-        high_confidence = len([p for p in products if float(p["신뢰도"]) >= 80])
-        medium_confidence = len([p for p in products if 60 <= float(p["신뢰도"]) < 80])
-        low_confidence = len([p for p in products if float(p["신뢰도"]) < 60])
+        high_confidence = len([p for p in products if p["신뢰도"] >= 80])
+        medium_confidence = len([p for p in products if 60 <= p["신뢰도"] < 80])
+        low_confidence = len([p for p in products if p["신뢰도"] < 60])
         
         # 출처별 분포
         source_stats = defaultdict(int)
@@ -200,27 +194,27 @@ class DataAggregator:
         report = f"""
 === 제품 집계 결과 리포트 ===
 
-기본 통계
+📊 기본 통계
 - 총 제품 종류: {validation['total_products']}개
 - 총 수량: {validation['total_quantity']}개
 - 평균 신뢰도: {validation['average_confidence']}%
 - 처리된 스레드: {validation['thread_count']}개
 
-신뢰도 분포
+🎯 신뢰도 분포
 - 높음 (80%+): {validation['confidence_distribution']['high (80+)']}개
 - 보통 (60-79%): {validation['confidence_distribution']['medium (60-79)']}개
 - 낮음 (60% 미만): {validation['confidence_distribution']['low (<60)']}개
 
-상위 제품 (수량 기준)
+📋 상위 제품 (수량 기준)
 """
         
         for i, product in enumerate(products[:10], 1):
             report += f"{i}. {product['제품명']} (코드: {product['품목코드']}) - {product['총_수량']}개\n"
         
         if validation['validation_passed']:
-            report += "\n검증 통과: 데이터 품질이 양호합니다."
+            report += "\n✅ 검증 통과: 데이터 품질이 양호합니다."
         else:
-            report += "\n검증 실패: 데이터 품질을 확인해주세요."
+            report += "\n⚠️ 검증 실패: 데이터 품질을 확인해주세요."
         
         return report
 

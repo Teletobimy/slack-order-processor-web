@@ -1,0 +1,7 @@
+# 환경 변수 설정 가이드
+# Streamlit Cloud 배포 시 다음 환경 변수를 설정하세요
+
+SLACK_BOT_TOKEN=xoxb-your-slack-bot-token
+OPENAI_API_KEY=sk-your-openai-api-key
+CHANNEL_ID=C-your-channel-id
+WAREHOUSE_CODE=100

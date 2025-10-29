@@ -76,5 +76,3 @@ def debug_excel_generation():
 
 if __name__ == "__main__":
     debug_excel_generation()
-
-

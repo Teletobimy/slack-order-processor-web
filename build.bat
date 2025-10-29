@@ -27,5 +27,3 @@ if exist "dist\SlackOrderProcessor.exe" (
 
 echo.
 pause
-
-

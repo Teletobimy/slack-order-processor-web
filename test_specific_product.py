@@ -64,5 +64,3 @@ def test_specific_product():
 
 if __name__ == "__main__":
     test_specific_product()
-
-

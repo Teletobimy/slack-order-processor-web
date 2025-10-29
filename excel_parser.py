@@ -146,4 +146,3 @@ if __name__ == "__main__":
             print(f"  - {product['product_name']}: {product['quantity']}개")
     else:
         print("테스트 파일이 없습니다.")
-

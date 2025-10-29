@@ -311,5 +311,3 @@ class SlackOrderProcessorGUI:
 if __name__ == "__main__":
     app = SlackOrderProcessorGUI()
     app.run()
-
-

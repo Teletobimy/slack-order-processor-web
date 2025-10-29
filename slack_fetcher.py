@@ -7,24 +7,10 @@ from typing import List, Dict, Any, Optional
 import time
 
 class SlackFetcher:
-    def __init__(self, config_path: str = "config.json", api_keys: Optional[Dict] = None):
+    def __init__(self, config_path: str = "config.json"):
         """Slack 데이터 수집 클래스 초기화"""
-        if api_keys:
-            # API 키가 직접 제공된 경우
-            self.config = api_keys
-        else:
-            # config.json 파일에서 읽기 (파일이 있는 경우에만)
-            if os.path.exists(config_path):
-                with open(config_path, 'r', encoding='utf-8') as f:
-                    self.config = json.load(f)
-            else:
-                # 파일이 없으면 빈 설정으로 초기화
-                self.config = {
-                    'slack_bot_token': '',
-                    'channel_id': '',
-                    'openai_api_key': '',
-                    'warehouse_code': '100'
-                }
+        with open(config_path, 'r', encoding='utf-8') as f:
+            self.config = json.load(f)
         
         self.headers = {
             "Authorization": f"Bearer {self.config['slack_bot_token']}"
@@ -53,57 +39,15 @@ class SlackFetcher:
         
         return start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')
     
-    def test_api_connection(self) -> Dict[str, Any]:
-        """
-        Slack API 연결 테스트
-        """
-        try:
-            # 채널 정보 조회로 API 연결 테스트
-            response = requests.get(
-                "https://slack.com/api/conversations.info",
-                headers=self.headers,
-                params={"channel": self.channel_id}
-            )
-            response.raise_for_status()
-            data = response.json()
-            
-            if data.get("ok"):
-                channel_info = data.get("channel", {})
-                return {
-                    "success": True,
-                    "message": f"채널 '{channel_info.get('name', 'Unknown')}' 접근 가능"
-                }
-            else:
-                error = data.get("error", "Unknown error")
-                return {
-                    "success": False,
-                    "message": f"API 오류: {error}"
-                }
-                
-        except requests.exceptions.RequestException as e:
-            return {
-                "success": False,
-                "message": f"네트워크 오류: {str(e)}"
-            }
-        except Exception as e:
-            return {
-                "success": False,
-                "message": f"예상치 못한 오류: {str(e)}"
-            }
-    
     def fetch_messages(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
         """
         지정된 날짜 범위의 메시지들을 가져옴
         """
         print(f"메시지 수집 중: {start_date} ~ {end_date}")
-        print(f"채널 ID: {self.channel_id}")
-        print(f"API 토큰 존재: {'Yes' if self.config.get('slack_bot_token') else 'No'}")
         
         # Unix timestamp로 변환
         start_ts = int(datetime.strptime(start_date, '%Y-%m-%d').timestamp())
         end_ts = int(datetime.strptime(end_date, '%Y-%m-%d').timestamp()) + 86399  # 하루 끝까지
-        
-        print(f"타임스탬프 범위: {start_ts} ~ {end_ts}")
         
         all_messages = []
         cursor = None
@@ -127,9 +71,6 @@ class SlackFetcher:
                 )
                 response.raise_for_status()
                 data = response.json()
-                
-                print(f"API 응답 상태: {response.status_code}")
-                print(f"API 응답 데이터: {data}")
                 
                 if not data.get("ok"):
                     print(f"API 오류: {data.get('error')}")

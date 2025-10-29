@@ -54,5 +54,3 @@ def test_with_real_data():
 
 if __name__ == "__main__":
     test_with_real_data()
-
-

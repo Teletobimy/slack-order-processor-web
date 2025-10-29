@@ -6,24 +6,17 @@ import re
 import os
 
 class GPTMatcher:
-    def __init__(self, config_path: str = "config.json", api_keys: Optional[Dict] = None):
+    def __init__(self, config_path: str = "config.json"):
         """GPT 매칭 클래스 초기화"""
-        if api_keys:
-            # API 키가 직접 제공된 경우
-            config = api_keys
-            products_db_path = "products2_map__combined.json"  # 기본값
-        else:
-            # config.json 파일에서 읽기
-            with open(config_path, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-            products_db_path = config.get('products_db', 'products2_map__combined.json')
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
         
         # OpenAI API 설정
         openai.api_key = config['openai_api_key']
         self.client = openai.OpenAI(api_key=config['openai_api_key'])
         
         # 제품 데이터베이스 로드
-        self.products_db = self.load_products_db(products_db_path)
+        self.products_db = self.load_products_db(config['products_db'])
         
     def load_products_db(self, db_path: str) -> Dict[str, Dict[str, str]]:
         """제품 데이터베이스 로드 (브랜드별 구조)"""
