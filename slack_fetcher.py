@@ -58,10 +58,14 @@ class SlackFetcher:
         지정된 날짜 범위의 메시지들을 가져옴
         """
         print(f"메시지 수집 중: {start_date} ~ {end_date}")
+        print(f"채널 ID: {self.channel_id}")
+        print(f"API 토큰 존재: {'Yes' if self.config.get('slack_bot_token') else 'No'}")
         
         # Unix timestamp로 변환
         start_ts = int(datetime.strptime(start_date, '%Y-%m-%d').timestamp())
         end_ts = int(datetime.strptime(end_date, '%Y-%m-%d').timestamp()) + 86399  # 하루 끝까지
+        
+        print(f"타임스탬프 범위: {start_ts} ~ {end_ts}")
         
         all_messages = []
         cursor = None
@@ -85,6 +89,9 @@ class SlackFetcher:
                 )
                 response.raise_for_status()
                 data = response.json()
+                
+                print(f"API 응답 상태: {response.status_code}")
+                print(f"API 응답 데이터: {data}")
                 
                 if not data.get("ok"):
                     print(f"API 오류: {data.get('error')}")

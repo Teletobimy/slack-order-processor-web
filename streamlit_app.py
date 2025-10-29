@@ -232,13 +232,17 @@ def main():
                     progress_bar.progress(20)
                     
                     messages = slack_fetcher.fetch_messages(start_date, end_date)
+                    st.write(f"📊 수집된 메시지 수: {len(messages) if messages else 0}")
+                    
                     processed_messages = slack_fetcher.process_messages_with_threads(messages)
+                    st.write(f"📊 처리된 메시지 수: {len(processed_messages) if processed_messages else 0}")
                     
                     # 2단계: 데이터 집계
                     status_text.text("데이터 집계 중...")
                     progress_bar.progress(60)
                     
                     aggregated_data = aggregator.aggregate_products(processed_messages)
+                    st.write(f"📊 집계된 제품 수: {len(aggregated_data.get('aggregated_products', [])) if aggregated_data else 0}")
                     
                     # 3단계: 결과 표시
                     status_text.text("결과 표시 중...")
