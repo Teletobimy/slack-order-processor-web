@@ -7,15 +7,26 @@ from typing import List, Dict, Any, Optional
 import time
 
 class SlackFetcher:
-    def __init__(self, config_path: str = "config.json"):
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
         """Slack 데이터 수집 클래스 초기화"""
-        with open(config_path, 'r', encoding='utf-8') as f:
-            self.config = json.load(f)
+        if config is None:
+            # 환경 변수에서 설정 로드
+            self.config = {
+                "slack_bot_token": os.getenv("SLACK_BOT_TOKEN"),
+                "channel_id": os.getenv("CHANNEL_ID"),
+                "openai_api_key": os.getenv("OPENAI_API_KEY"),
+                "warehouse_code": os.getenv("WAREHOUSE_CODE", "100")
+            }
+        else:
+            self.config = config
+        
+        if not self.config.get("slack_bot_token"):
+            raise ValueError("SLACK_BOT_TOKEN 환경 변수가 설정되지 않았습니다.")
         
         self.headers = {
             "Authorization": f"Bearer {self.config['slack_bot_token']}"
         }
-        self.channel_id = self.config['channel_id']
+        self.channel_id = self.config.get('channel_id')
         
     def get_date_range(self, custom_start: Optional[str] = None, custom_end: Optional[str] = None) -> tuple:
         """

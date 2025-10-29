@@ -164,7 +164,7 @@ def main():
                 status_text.text("📡 Slack 데이터 수집 중...")
                 progress_bar.progress(10)
                 
-                fetcher = SlackFetcher()
+                fetcher = SlackFetcher(config)
                 fetcher.channel_id = channel_id
                 
                 messages = fetcher.fetch_messages(
@@ -189,7 +189,7 @@ def main():
                 status_text.text("📊 데이터 집계 중...")
                 progress_bar.progress(60)
                 
-                aggregator = DataAggregator()
+                aggregator = DataAggregator(config)
                 aggregated_data = aggregator.aggregate_products(processed_messages)
                 
                 aggregated_by_brand = aggregated_data.get("aggregated_by_brand", {})

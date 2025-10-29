@@ -7,10 +7,10 @@ from excel_parser import ExcelParser
 from gpt_matcher import GPTMatcher
 
 class DataAggregator:
-    def __init__(self, config_path: str = "config.json"):
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
         """데이터 집계 클래스 초기화"""
         self.excel_parser = ExcelParser()
-        self.gpt_matcher = GPTMatcher(config_path)
+        self.gpt_matcher = GPTMatcher(config)
         
     def process_excel_files(self, downloaded_files: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
