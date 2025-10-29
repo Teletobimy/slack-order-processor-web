@@ -52,13 +52,26 @@ class SlackFetcher:
     
     def fetch_messages(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
         """
-        지정된 날짜 범위의 메시지들을 가져옴
+        지정된 날짜 범위의 메시지들을 가져옴 (한국 시간 UTC+9 고려)
         """
         print(f"메시지 수집 중: {start_date} ~ {end_date}")
         
-        # Unix timestamp로 변환
-        start_ts = int(datetime.strptime(start_date, '%Y-%m-%d').timestamp())
-        end_ts = int(datetime.strptime(end_date, '%Y-%m-%d').timestamp()) + 86399  # 하루 끝까지
+        # 한국 시간(UTC+9)을 고려한 Unix timestamp 변환
+        from datetime import timezone, timedelta
+        
+        # 한국 시간대 설정
+        kst = timezone(timedelta(hours=9))
+        
+        # 날짜를 한국 시간대로 해석
+        start_dt = datetime.strptime(start_date, '%Y-%m-%d').replace(tzinfo=kst)
+        end_dt = datetime.strptime(end_date, '%Y-%m-%d').replace(tzinfo=kst) + timedelta(days=1)
+        
+        # UTC로 변환하여 timestamp 계산
+        start_ts = int(start_dt.astimezone(timezone.utc).timestamp())
+        end_ts = int(end_dt.astimezone(timezone.utc).timestamp())
+        
+        print(f"UTC 타임스탬프 범위: {start_ts} ~ {end_ts}")
+        print(f"한국 시간 범위: {start_dt} ~ {end_dt}")
         
         all_messages = []
         cursor = None
@@ -108,6 +121,17 @@ class SlackFetcher:
                 break
         
         print(f"총 {len(all_messages)}개 메시지 수집 완료")
+        
+        # 메시지 타임스탬프 디버깅 정보
+        if all_messages:
+            print("메시지 타임스탬프 정보:")
+            for i, msg in enumerate(all_messages[:5], 1):  # 처음 5개만 표시
+                ts = float(msg.get('ts', 0))
+                msg_time = datetime.fromtimestamp(ts, tz=timezone.utc)
+                kst_time = msg_time.astimezone(kst)
+                text_preview = msg.get('text', '')[:50].replace('\n', ' ')
+                print(f"  메시지 {i}: {kst_time.strftime('%Y-%m-%d %H:%M:%S')} KST - {text_preview}...")
+        
         return all_messages
     
     def fetch_thread_replies(self, message_ts: str) -> List[Dict[str, Any]]:
