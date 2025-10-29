@@ -139,9 +139,17 @@ class DataAggregator:
                         source_info += f"({p['source_file']})"
                     sources.append(source_info)
                 
+                # RAG 매칭 결과의 키 확인
+                matched_name = (
+                    best_match.get("제품명") or 
+                    best_match.get("매칭된_제품명") or 
+                    best_match.get("제품명 (데이터베이스의 정확한 제품명)") or 
+                    ""
+                )
+                
                 brand_aggregated.append({
                     "품목코드": product_code,
-                    "제품명": best_match.get("매칭된_제품명", ""),
+                    "제품명": matched_name,
                     "총_수량": total_quantity,
                     "신뢰도": best_match.get("confidence", 0),
                     "출처_수": len(product_list),

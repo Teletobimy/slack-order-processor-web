@@ -270,7 +270,8 @@ def main():
                 for brand in brands:
                     with st.expander(f"{brand} 브랜드 ({len(aggregated_by_brand.get(brand, []))}개 제품)"):
                         for product in aggregated_by_brand.get(brand, []):
-                            st.write(f"- {product.get('제품명', '')} × {product.get('총_수량', 0)}개")
+                            product_name = product.get('제품명', '') or product.get('상세_정보', [{}])[0].get('제품명', '알 수 없는 제품')
+                            st.write(f"- {product_name} × {product.get('총_수량', 0)}개")
                 
                 # 최종 확인 버튼
                 if st.button("✅ 최종 확인 및 Excel 생성", type="primary"):
