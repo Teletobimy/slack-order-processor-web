@@ -80,7 +80,7 @@ def load_products_db():
             products_db = json.load(f)
             st.success(f"제품 데이터베이스 로드 성공: {len(products_db)}개 브랜드")
             return products_db
-        except Exception as e:
+    except Exception as e:
         st.error(f"제품 데이터베이스 로드 오류: {e}")
         with st.expander("🔍 상세 오류 정보", expanded=False):
             import traceback
