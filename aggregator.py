@@ -63,13 +63,18 @@ class DataAggregator:
             original_message = message_data.get("original_message", {})
             replies = message_data.get("replies", [])
             
-            # 전체 텍스트 조합
-            full_text = original_message.get("text", "")
-            for reply in replies:
-                full_text += " " + reply.get("text", "")
+            # 전체 텍스트 조합 (본문과 댓글 구분)
+            original_text = original_message.get("text", "")
+            reply_texts = [reply.get("text", "") for reply in replies if reply.get("text", "").strip()]
+            
+            # 댓글이 있으면 전체 문맥을 포함
+            if reply_texts:
+                full_text = f"{original_text}\n\n댓글: {' '.join(reply_texts)}"
+            else:
+                full_text = original_text
             
             if full_text.strip():
-                # RAG 매칭 사용
+                # RAG 매칭 사용 (텍스트 길이 제한 없음)
                 rag_products = self.gpt_matcher.match_products_with_context(full_text, original_message.get("user", {}))
                 
                 for product in rag_products:

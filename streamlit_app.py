@@ -315,8 +315,6 @@ def main():
                 st.session_state.manual_products = {brand: [] for brand in brand_order}
             
             # 브랜드별 접는 형식으로 제품 표시
-            st.markdown("### 📝 제품 매칭 확인 및 조정")
-            
             for brand in sorted_brands:
                 if brand not in products_by_brand:
                     products_by_brand[brand] = []
@@ -552,7 +550,7 @@ def main():
                 
                 if not filtered_data['brands']:
                     st.error("선택된 제품이 없습니다. 최소 1개 이상의 제품을 선택해주세요.")
-                else:
+            else:
                     with st.spinner("Excel 파일 생성 중..."):
                         # Excel 생성 (필터링된 데이터 사용)
                         generator = ExcelGenerator(config)
@@ -577,9 +575,9 @@ def main():
                                 
                                 st.success("✅ Excel 파일 생성 완료!")
                                 st.rerun()
-                            else:
+        else:
                                 st.error("Excel 파일 생성 실패")
-        
+    
         # Excel 다운로드 버튼 (세션 상태 사용)
         if st.session_state.excel_ready and 'excel_zip' in st.session_state:
             st.markdown("---")
