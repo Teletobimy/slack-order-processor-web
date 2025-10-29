@@ -312,10 +312,6 @@ def main():
                     status_text.empty()
                 
                 return
-                                mime="application/zip"
-                            )
-                    else:
-                        st.error("Excel 파일 생성에 실패했습니다.")
                 
             except Exception as e:
                 st.error(f"처리 중 오류 발생: {e}")
