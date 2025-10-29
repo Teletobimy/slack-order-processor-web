@@ -109,10 +109,14 @@ def main():
         st.subheader("📅 처리 기간")
         today = datetime.now().date()
         
-        # 기본값: 어제
-        default_start = today - timedelta(days=1)
-        if today.weekday() == 0:  # 월요일이면 금요일부터
-            default_start = today - timedelta(days=3)
+        # SlackFetcher 로직과 동일하게 설정
+        if today.weekday() == 0:  # 월요일이면 금요일~일요일
+            default_start = today - timedelta(days=3)  # 금요일
+            default_end = today - timedelta(days=1)     # 일요일
+        else:
+            # 평일인 경우 직전 날짜만
+            default_start = today - timedelta(days=1)   # 어제
+            default_end = today - timedelta(days=1)     # 어제
         
         start_date = st.date_input(
             "시작 날짜",
@@ -122,7 +126,7 @@ def main():
         
         end_date = st.date_input(
             "종료 날짜", 
-            value=today,
+            value=default_end,
             max_value=today
         )
         
