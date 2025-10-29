@@ -67,10 +67,22 @@ def load_config():
 def load_products_db():
     """제품 데이터베이스 로드"""
     try:
+        # 파일 존재 확인
+        if not os.path.exists("products_map.json"):
+            st.error("products_map.json 파일을 찾을 수 없습니다.")
+            st.info("현재 디렉토리 파일들:")
+            for file in os.listdir("."):
+                st.write(f"- {file}")
+            return None
+            
         with open("products_map.json", 'r', encoding='utf-8') as f:
-            return json.load(f)
+            products_db = json.load(f)
+            st.success(f"제품 데이터베이스 로드 성공: {len(products_db)}개 브랜드")
+            return products_db
     except Exception as e:
         st.error(f"제품 데이터베이스 로드 오류: {e}")
+        import traceback
+        st.code(traceback.format_exc())
         return None
 
 def main():
@@ -196,11 +208,18 @@ def main():
                 aggregator = DataAggregator(config)
                 aggregated_data = aggregator.aggregate_products(processed_messages)
                 
+                # 디버깅 정보 표시
+                st.info(f"집계된 데이터: {aggregated_data}")
+                
                 aggregated_by_brand = aggregated_data.get("aggregated_by_brand", {})
                 brands = aggregated_data.get("brands", [])
                 
+                st.info(f"브랜드별 집계: {aggregated_by_brand}")
+                st.info(f"발견된 브랜드: {brands}")
+                
                 if not brands:
                     st.warning("매칭된 제품이 없습니다.")
+                    st.info("처리된 메시지 수: " + str(len(processed_messages)))
                     return
                 
                 st.success(f"✅ {len(brands)}개 브랜드에서 제품 매칭 완료")
