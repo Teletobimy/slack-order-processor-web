@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slack 출고 데이터 처리 자동화</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .status-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .progress-container {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .data-table {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .btn-custom {
+            border-radius: 25px;
+            padding: 10px 30px;
+            font-weight: bold;
+        }
+        .card-custom {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="text-center mb-4">
+                    <h1 class="display-4 text-primary">
+                        <i class="fas fa-chart-line"></i> Slack 출고 데이터 처리 자동화
+                    </h1>
+                    <p class="lead text-muted">Slack 메시지에서 출고 데이터를 자동으로 수집하고 Excel로 변환합니다</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 오류 메시지 -->
+        {% if missing_files or missing_keys %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="alert alert-danger" role="alert">
+                    <h4 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> 설정 오류</h4>
+                    {% if missing_files %}
+                    <p><strong>누락된 파일:</strong></p>
+                    <ul>
+                        {% for file in missing_files %}
+                        <li>{{ file }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                    {% if missing_keys %}
+                    <p><strong>누락된 설정:</strong></p>
+                    <ul>
+                        {% for key in missing_keys %}
+                        <li>{{ key }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="row">
+            <!-- 왼쪽 컬럼 - 설정 및 제어 -->
+            <div class="col-md-4">
+                <div class="card card-custom mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5><i class="fas fa-cog"></i> 설정</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="processForm">
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="autoDate" checked>
+                                    <label class="form-check-label" for="autoDate">
+                                        자동 날짜 계산 (직전 날짜, 월요일이면 금~일)
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3" id="manualDate" style="display: none;">
+                                <label for="startDate" class="form-label">시작일</label>
+                                <input type="date" class="form-control" id="startDate">
+                                
+                                <label for="endDate" class="form-label mt-2">종료일</label>
+                                <input type="date" class="form-control" id="endDate">
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary btn-custom w-100" id="processBtn">
+                                <i class="fas fa-play"></i> 데이터 수집 시작
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 진행 상황 -->
+                <div class="card card-custom mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h5><i class="fas fa-tasks"></i> 진행 상황</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="progress mb-3" style="height: 25px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" id="progressBar" style="width: 0%">
+                                <span id="progressText">0%</span>
+                            </div>
+                        </div>
+                        <div id="statusMessage" class="text-muted">대기 중...</div>
+                    </div>
+                </div>
+
+                <!-- 다운로드 버튼 -->
+                <div class="card card-custom" id="downloadCard" style="display: none;">
+                    <div class="card-header bg-success text-white">
+                        <h5><i class="fas fa-download"></i> 다운로드</h5>
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-success btn-custom w-100 mb-2" id="downloadExcel">
+                            <i class="fas fa-file-excel"></i> Excel 파일 다운로드
+                        </button>
+                        <button class="btn btn-outline-success btn-custom w-100" id="downloadJson">
+                            <i class="fas fa-file-code"></i> JSON 데이터 다운로드
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 오른쪽 컬럼 - 결과 표시 -->
+            <div class="col-md-8">
+                <div class="card card-custom">
+                    <div class="card-header bg-secondary text-white">
+                        <h5><i class="fas fa-table"></i> 결과 미리보기</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="resultContainer">
+                            <div class="text-center text-muted py-5">
+                                <i class="fas fa-chart-bar fa-3x mb-3"></i>
+                                <p>데이터를 수집하면 결과가 여기에 표시됩니다.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 하단 정보 -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card card-custom">
+                    <div class="card-body">
+                        <h5><i class="fas fa-info-circle"></i> 사용 방법</h5>
+                        <ol>
+                            <li><strong>날짜 선택</strong>: 자동 계산 또는 수동 입력</li>
+                            <li><strong>데이터 수집</strong>: Slack에서 메시지와 첨부파일 수집</li>
+                            <li><strong>결과 확인</strong>: 제품별 수량 집계 결과 확인</li>
+                            <li><strong>파일 다운로드</strong>: Excel 또는 JSON 형태로 다운로드</li>
+                        </ol>
+                        
+                        <h5 class="mt-3"><i class="fas fa-tools"></i> 기술 스택</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <ul>
+                                    <li>Python 3.10+</li>
+                                    <li>Flask 웹 프레임워크</li>
+                                    <li>Slack API</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <ul>
+                                    <li>OpenAI GPT-4o</li>
+                                    <li>openpyxl (Excel 처리)</li>
+                                    <li>pandas (데이터 처리)</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let statusCheckInterval;
+
+        // 자동 날짜 체크박스 이벤트
+        document.getElementById('autoDate').addEventListener('change', function() {
+            const manualDate = document.getElementById('manualDate');
+            if (this.checked) {
+                manualDate.style.display = 'none';
+            } else {
+                manualDate.style.display = 'block';
+            }
+        });
+
+        // 폼 제출 이벤트
+        document.getElementById('processForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const autoDate = document.getElementById('autoDate').checked;
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            // 버튼 비활성화
+            const processBtn = document.getElementById('processBtn');
+            processBtn.disabled = true;
+            processBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 처리 중...';
+            
+            // 진행률 초기화
+            updateProgress(0, '데이터 수집 시작...');
+            
+            // API 호출
+            fetch('/api/process', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    auto_date: autoDate,
+                    start_date: startDate,
+                    end_date: endDate
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // 상태 확인 시작
+                statusCheckInterval = setInterval(checkStatus, 1000);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('오류가 발생했습니다: ' + error.message);
+                processBtn.disabled = false;
+                processBtn.innerHTML = '<i class="fas fa-play"></i> 데이터 수집 시작';
+            });
+        });
+
+        // 상태 확인 함수
+        function checkStatus() {
+            fetch('/api/status')
+            .then(response => response.json())
+            .then(data => {
+                updateProgress(data.progress, data.status_message);
+                
+                if (data.processing_status === 'completed') {
+                    clearInterval(statusCheckInterval);
+                    document.getElementById('processBtn').disabled = false;
+                    document.getElementById('processBtn').innerHTML = '<i class="fas fa-play"></i> 데이터 수집 시작';
+                    document.getElementById('downloadCard').style.display = 'block';
+                    showResults(data.aggregated_data);
+                } else if (data.processing_status === 'error') {
+                    clearInterval(statusCheckInterval);
+                    document.getElementById('processBtn').disabled = false;
+                    document.getElementById('processBtn').innerHTML = '<i class="fas fa-play"></i> 데이터 수집 시작';
+                    alert('오류가 발생했습니다: ' + data.status_message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        // 진행률 업데이트
+        function updateProgress(progress, message) {
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const statusMessage = document.getElementById('statusMessage');
+            
+            progressBar.style.width = progress + '%';
+            progressText.textContent = progress + '%';
+            statusMessage.textContent = message;
+        }
+
+        // 결과 표시
+        function showResults(data) {
+            const container = document.getElementById('resultContainer');
+            const products = data.aggregated_products || [];
+            
+            if (products.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+                        <p>수집된 데이터가 없습니다.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let tableHTML = `
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>품목코드</th>
+                                <th>제품명</th>
+                                <th>수량</th>
+                                <th>신뢰도</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            products.forEach(product => {
+                tableHTML += `
+                    <tr>
+                        <td>${product.품목코드}</td>
+                        <td>${product.제품명}</td>
+                        <td>${product.총_수량}</td>
+                        <td>${product.신뢰도}%</td>
+                    </tr>
+                `;
+            });
+            
+            tableHTML += `
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-3">
+                    <span class="badge bg-primary fs-6">총 ${products.length}개 제품</span>
+                </div>
+            `;
+            
+            container.innerHTML = tableHTML;
+        }
+
+        // 다운로드 버튼 이벤트
+        document.getElementById('downloadExcel').addEventListener('click', function() {
+            window.location.href = '/api/download/excel';
+        });
+
+        document.getElementById('downloadJson').addEventListener('click', function() {
+            window.location.href = '/api/download/json';
+        });
+    </script>
+</body>
+</html>
