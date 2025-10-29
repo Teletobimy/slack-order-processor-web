@@ -263,7 +263,35 @@ def main():
             
             # 검증 화면
             st.markdown("---")
-            st.subheader("📝 제품 매칭 확인")
+            st.subheader("📝 제품 매칭 확인 및 조정")
+            
+            # 세션 상태에 선택된 제품 저장
+            if 'selected_products' not in st.session_state:
+                st.session_state.selected_products = {}
+            
+            # 모든 제품을 리스트로 구성
+            all_products_list = []
+            for brand in brands:
+                for product in aggregated_by_brand.get(brand, []):
+                    product_name = product.get('제품명', '') or product.get('상세_정보', [{}])[0].get('제품명', '알 수 없는 제품')
+                    product_key = f"{brand}_{product.get('품목코드', '')}"
+                    
+                    # 기본값 설정
+                    if product_key not in st.session_state.selected_products:
+                        st.session_state.selected_products[product_key] = {
+                            'selected': True,
+                            'quantity': product.get('총_수량', 0)
+                        }
+                    
+                    all_products_list.append({
+                        'key': product_key,
+                        '브랜드': brand,
+                        '품목코드': product.get('품목코드', ''),
+                        '제품명': product_name,
+                        '수량': product.get('총_수량', 0),
+                        '신뢰도': product.get('신뢰도', 0),
+                        '원본데이터': product
+                    })
             
             # 모호한 제품 표시
             ambiguous_products = aggregated_data.get("ambiguous_products", [])
@@ -271,62 +299,115 @@ def main():
                 st.warning(f"⚠️ {len(ambiguous_products)}개 제품이 모호합니다. 확인이 필요합니다.")
                 st.write("**모호한 제품 목록:**")
                 for i, product in enumerate(ambiguous_products, 1):
-                    with st.expander(f"제품 {i}: {product.get('product_name', '알 수 없음')}"):
+                    with st.expander(f"⚠️ 제품 {i}: {product.get('product_name', '알 수 없음')}"):
                         st.write(f"- 요청 제품: {product.get('product_name', '')}")
                         st.write(f"- 수량: {product.get('quantity', 0)} {product.get('unit', '')}")
                         st.write(f"- 용량: {product.get('capacity', '미기재')}")
                         st.write(f"- 신뢰도: {product.get('confidence', 0)}%")
-                        
-                        # 사용자 선택
-                        key = f"ambiguous_choice_{i}"
-                        selected = st.radio(
-                            "이 제품이 맞습니까?",
-                            options=["매칭 유지", "제외"],
-                            key=key,
-                            index=0
-                        )
-                        if selected == "제외":
-                            # 제품 제외 로직 (나중에 구현)
-                            pass
-            else:
-                st.success("✅ 모든 제품이 명확하게 매칭되었습니다.")
+                        st.write(f"- 매칭된 제품: {product.get('제품명', 'N/A')}")
             
-            # 정상 매칭된 제품 요약
-            st.write("**매칭된 제품 요약:**")
-            for brand in brands:
-                with st.expander(f"{brand} 브랜드 ({len(aggregated_by_brand.get(brand, []))}개 제품)"):
-                    for product in aggregated_by_brand.get(brand, []):
-                        product_name = product.get('제품명', '') or product.get('상세_정보', [{}])[0].get('제품명', '알 수 없는 제품')
-                        st.write(f"- {product_name} × {product.get('총_수량', 0)}개")
+            # 제품별 선택 및 조정 UI
+            st.markdown("### 제품 목록 (선택 및 수량 조정 가능)")
+            
+            if not all_products_list:
+                st.warning("매칭된 제품이 없습니다.")
+            else:
+                for idx, product in enumerate(all_products_list):
+                    product_key = product['key']
+                    
+                    col1, col2 = st.columns([3, 1])
+                    
+                    with col1:
+                        # 제품 정보 표시
+                        st.write(f"**{product['브랜드']}** - {product['제품명']}")
+                        st.caption(f"품목코드: {product['품목코드']} | 신뢰도: {product['신뢰도']}% | 원본 수량: {product['수량']}개")
+                    
+                    with col2:
+                        # 포함/제외 체크박스
+                        selected = st.checkbox(
+                            "포함",
+                            value=st.session_state.selected_products[product_key]['selected'],
+                            key=f"checkbox_{product_key}",
+                            label_visibility="collapsed"
+                        )
+                        st.session_state.selected_products[product_key]['selected'] = selected
+                    
+                    if selected:
+                        # 수량 조정
+                        quantity = st.number_input(
+                            "수량 조정",
+                            min_value=0,
+                            value=int(st.session_state.selected_products[product_key]['quantity']),
+                            key=f"quantity_{product_key}",
+                            help=f"원본 수량: {product['수량']}개"
+                        )
+                        st.session_state.selected_products[product_key]['quantity'] = quantity
+                        
+                        if quantity != product['수량']:
+                            st.info(f"⚠️ 수량이 {product['수량']}개에서 {quantity}개로 변경되었습니다.")
+                    
+                    st.markdown("---")
+                
+                # 선택 요약
+                selected_count = sum(1 for p in st.session_state.selected_products.values() if p.get('selected', False))
+                total_quantity = sum(p['quantity'] for p in st.session_state.selected_products.values() if p.get('selected', False))
+                st.info(f"✅ 총 {selected_count}개 제품이 선택되었습니다. (전체 {len(all_products_list)}개 중) | 선택된 총 수량: {total_quantity}개")
             
             # 최종 확인 버튼
             if st.button("✅ 최종 확인 및 Excel 생성", type="primary", key="final_confirm"):
-                with st.spinner("Excel 파일 생성 중..."):
-                    # Excel 생성
-                    generator = ExcelGenerator(config)
+                # 선택된 제품만 필터링하여 Excel 생성에 사용
+                filtered_data = {
+                    'aggregated_by_brand': {},
+                    'brands': [],
+                    'ambiguous_products': aggregated_data.get('ambiguous_products', []),
+                    'thread_summaries': aggregated_data.get('thread_summaries', [])
+                }
+                
+                # 선택된 제품만 집계
+                for brand in brands:
+                    brand_products = []
+                    for product in aggregated_by_brand.get(brand, []):
+                        product_key = f"{brand}_{product.get('품목코드', '')}"
+                        if product_key in st.session_state.selected_products:
+                            if st.session_state.selected_products[product_key].get('selected', False):
+                                # 수량 수정 반영
+                                modified_product = product.copy()
+                                modified_product['총_수량'] = st.session_state.selected_products[product_key].get('quantity', product.get('총_수량', 0))
+                                brand_products.append(modified_product)
                     
-                    # 임시 디렉토리에 파일 생성
-                    with tempfile.TemporaryDirectory() as temp_dir:
-                        created_files = generator.create_excel_files_by_brand(aggregated_data, temp_dir)
+                    if brand_products:
+                        filtered_data['aggregated_by_brand'][brand] = brand_products
+                        filtered_data['brands'].append(brand)
+                
+                if not filtered_data['brands']:
+                    st.error("선택된 제품이 없습니다. 최소 1개 이상의 제품을 선택해주세요.")
+                else:
+                    with st.spinner("Excel 파일 생성 중..."):
+                        # Excel 생성 (필터링된 데이터 사용)
+                        generator = ExcelGenerator(config)
                         
-                        if created_files:
-                            # ZIP 파일 생성
-                            zip_buffer = BytesIO()
-                            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-                                for file_path in created_files:
-                                    zip_file.write(file_path, os.path.basename(file_path))
-                            zip_buffer.seek(0)
+                        # 임시 디렉토리에 파일 생성
+                        with tempfile.TemporaryDirectory() as temp_dir:
+                            created_files = generator.create_excel_files_by_brand(filtered_data, temp_dir)
                             
-                            # 세션 상태에 저장
-                            st.session_state.excel_zip = zip_buffer.getvalue()
-                            st.session_state.excel_filename = f"출고_데이터_{start_date}_{end_date}.zip"
-                            st.session_state.excel_ready = True
-                            st.session_state.created_files = [os.path.basename(f) for f in created_files]
-                            
-                            st.success("✅ Excel 파일 생성 완료!")
-                            st.rerun()
-                        else:
-                            st.error("Excel 파일 생성 실패")
+                            if created_files:
+                                # ZIP 파일 생성
+                                zip_buffer = BytesIO()
+                                with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                                    for file_path in created_files:
+                                        zip_file.write(file_path, os.path.basename(file_path))
+                                zip_buffer.seek(0)
+                                
+                                # 세션 상태에 저장
+                                st.session_state.excel_zip = zip_buffer.getvalue()
+                                st.session_state.excel_filename = f"출고_데이터_{start_date}_{end_date}.zip"
+                                st.session_state.excel_ready = True
+                                st.session_state.created_files = [os.path.basename(f) for f in created_files]
+                                
+                                st.success("✅ Excel 파일 생성 완료!")
+                                st.rerun()
+                            else:
+                                st.error("Excel 파일 생성 실패")
         
         # Excel 다운로드 버튼 (세션 상태 사용)
         if st.session_state.excel_ready and 'excel_zip' in st.session_state:
