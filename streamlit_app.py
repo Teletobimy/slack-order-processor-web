@@ -56,27 +56,32 @@ def check_config():
     if all(env_config.values()):
         return []
     
-    # config.json 파일 확인
-    try:
-        with open("config.json", 'r', encoding='utf-8') as f:
-            config = json.load(f)
-        
-        required_keys = [
-            "slack_bot_token",
-            "channel_id", 
-            "openai_api_key",
-            "warehouse_code"
-        ]
-        
-        missing_keys = []
-        for key in required_keys:
-            if key not in config or not config[key]:
-                missing_keys.append(key)
-        
-        return missing_keys
-        
-    except Exception as e:
-        return [f"설정 파일 읽기 오류: {e}"]
+    # config.json 파일 확인 (선택사항)
+    if os.path.exists("config.json"):
+        try:
+            with open("config.json", 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            
+            required_keys = [
+                "slack_bot_token",
+                "channel_id", 
+                "openai_api_key",
+                "warehouse_code"
+            ]
+            
+            missing_keys = []
+            for key in required_keys:
+                if key not in config or not config[key]:
+                    missing_keys.append(key)
+            
+            if not missing_keys:
+                return []
+                
+        except Exception as e:
+            pass  # config.json 파일이 있지만 읽기 실패한 경우 무시
+    
+    # 모든 방법이 실패한 경우 누락된 키 반환
+    return ["slack_bot_token", "channel_id", "openai_api_key", "warehouse_code"]
 
 def main():
     """메인 Streamlit 앱"""
