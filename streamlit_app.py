@@ -119,34 +119,23 @@ def main():
     with st.sidebar:
         st.header("⚙️ 설정")
         
-        # 날짜 선택
-        st.subheader("📅 처리 기간")
+        # 날짜 선택 (하루 단위만 처리)
+        st.subheader("📅 처리 날짜")
         today = datetime.now().date()
         
-        # SlackFetcher 로직과 동일하게 설정
-        if today.weekday() == 0:  # 월요일이면 금요일~일요일
-            default_start = today - timedelta(days=3)  # 금요일
-            default_end = today - timedelta(days=1)     # 일요일
+        # 기본값 설정 (SlackFetcher 로직과 동일)
+        if today.weekday() == 0:  # 월요일이면 금요일~일요일 중 일요일
+            default_date = today - timedelta(days=1)  # 일요일
         else:
             # 평일인 경우 직전 날짜만
-            default_start = today - timedelta(days=1)   # 어제
-            default_end = today - timedelta(days=1)     # 어제
+            default_date = today - timedelta(days=1)   # 어제
         
-        start_date = st.date_input(
-            "시작 날짜",
-            value=default_start,
-            max_value=today
+        target_date = st.date_input(
+            "처리할 날짜",
+            value=default_date,
+            max_value=today,
+            help="하루 단위로만 처리됩니다"
         )
-        
-        end_date = st.date_input(
-            "종료 날짜", 
-            value=default_end,
-            max_value=today
-        )
-        
-        if start_date > end_date:
-            st.error("시작 날짜는 종료 날짜보다 이전이어야 합니다.")
-            return
         
         # 채널 선택
         st.subheader("📢 채널 설정")
@@ -193,13 +182,12 @@ def main():
                 fetcher = SlackFetcher(config)
                 fetcher.channel_id = channel_id
                 
-                messages = fetcher.fetch_messages(
-                    start_date.strftime('%Y-%m-%d'),
-                    end_date.strftime('%Y-%m-%d')
-                )
+                # 하루 단위로 처리 (start_date와 end_date를 동일하게 설정)
+                date_str = target_date.strftime('%Y-%m-%d')
+                messages = fetcher.fetch_messages(date_str, date_str)
                 
                 if not messages:
-                    st.warning("선택한 기간에 메시지가 없습니다.")
+                    st.warning(f"{target_date}에 메시지가 없습니다.")
                     return
                 
                 st.success(f"✅ {len(messages)}개 메시지 수집 완료")
@@ -575,7 +563,7 @@ def main():
                                 
                                 # 세션 상태에 저장
                                 st.session_state.excel_zip = zip_buffer.getvalue()
-                                st.session_state.excel_filename = f"출고_데이터_{start_date}_{end_date}.zip"
+                                st.session_state.excel_filename = f"출고_데이터_{target_date.strftime('%Y-%m-%d')}.zip"
                                 st.session_state.excel_ready = True
                                 st.session_state.created_files = [os.path.basename(f) for f in created_files]
                                 
