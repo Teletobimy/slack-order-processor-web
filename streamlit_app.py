@@ -16,7 +16,6 @@ import io
 def check_dependencies():
     """필수 파일 및 의존성 확인"""
     required_files = [
-        "config.json",
         "products2_map__combined.json", 
         "Template_json_with_rows_columns.json"
     ]
