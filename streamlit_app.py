@@ -80,7 +80,7 @@ def load_products_db():
             products_db = json.load(f)
             st.success(f"제품 데이터베이스 로드 성공: {len(products_db)}개 브랜드")
             return products_db
-    except Exception as e:
+        except Exception as e:
         st.error(f"제품 데이터베이스 로드 오류: {e}")
         with st.expander("🔍 상세 오류 정보", expanded=False):
             import traceback
@@ -182,14 +182,14 @@ def main():
                 return
             
             # 진행 상황 표시
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-            
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+                    
             try:
                 # 1. Slack 데이터 수집
                 status_text.text("📡 Slack 데이터 수집 중...")
-                progress_bar.progress(10)
-                
+                    progress_bar.progress(10)
+                    
                 fetcher = SlackFetcher(config)
                 fetcher.channel_id = channel_id
                 
@@ -197,8 +197,8 @@ def main():
                     start_date.strftime('%Y-%m-%d'),
                     end_date.strftime('%Y-%m-%d')
                 )
-                
-                if not messages:
+                    
+                    if not messages:
                     st.warning("선택한 기간에 메시지가 없습니다.")
                     return
                 
@@ -213,13 +213,13 @@ def main():
                 
                 # 3. 데이터 집계
                 status_text.text("📊 데이터 집계 중...")
-                progress_bar.progress(60)
-                
+                    progress_bar.progress(60)
+                    
                 aggregator = DataAggregator(config)
-                aggregated_data = aggregator.aggregate_products(processed_messages)
-                
-                # 세션 상태에 저장
-                st.session_state.aggregated_data = aggregated_data
+                    aggregated_data = aggregator.aggregate_products(processed_messages)
+                    
+                    # 세션 상태에 저장
+                    st.session_state.aggregated_data = aggregated_data
                 st.session_state.show_validation = True
                 st.session_state.excel_ready = False
                 
@@ -238,8 +238,8 @@ def main():
                 
                 # 검증 화면 표시를 위해 다시 실행 (rerun)
                 st.rerun()
-            
-            except Exception as e:
+                    
+                except Exception as e:
                 st.error(f"처리 중 오류 발생: {e}")
                 import traceback
                 st.code(traceback.format_exc())
@@ -306,52 +306,174 @@ def main():
                         st.write(f"- 신뢰도: {product.get('confidence', 0)}%")
                         st.write(f"- 매칭된 제품: {product.get('제품명', 'N/A')}")
             
-            # 제품별 선택 및 조정 UI
-            st.markdown("### 제품 목록 (선택 및 수량 조정 가능)")
+            # 브랜드별로 제품 그룹화
+            products_by_brand = {}
+            for product in all_products_list:
+                brand = product['브랜드']
+                if brand not in products_by_brand:
+                    products_by_brand[brand] = []
+                products_by_brand[brand].append(product)
             
-            if not all_products_list:
-                st.warning("매칭된 제품이 없습니다.")
-            else:
-                for idx, product in enumerate(all_products_list):
-                    product_key = product['key']
-                    
-                    col1, col2 = st.columns([3, 1])
-                    
-                    with col1:
-                        # 제품 정보 표시
-                        st.write(f"**{product['브랜드']}** - {product['제품명']}")
-                        st.caption(f"품목코드: {product['품목코드']} | 신뢰도: {product['신뢰도']}% | 원본 수량: {product['수량']}개")
-                    
-                    with col2:
-                        # 포함/제외 체크박스
-                        selected = st.checkbox(
-                            "포함",
-                            value=st.session_state.selected_products[product_key]['selected'],
-                            key=f"checkbox_{product_key}",
-                            label_visibility="collapsed"
-                        )
-                        st.session_state.selected_products[product_key]['selected'] = selected
-                    
-                    if selected:
-                        # 수량 조정
-                        quantity = st.number_input(
-                            "수량 조정",
-                            min_value=0,
-                            value=int(st.session_state.selected_products[product_key]['quantity']),
-                            key=f"quantity_{product_key}",
-                            help=f"원본 수량: {product['수량']}개"
-                        )
-                        st.session_state.selected_products[product_key]['quantity'] = quantity
-                        
-                        if quantity != product['수량']:
-                            st.info(f"⚠️ 수량이 {product['수량']}개에서 {quantity}개로 변경되었습니다.")
-                    
-                    st.markdown("---")
+            # 브랜드 순서 정의 (피더린, 탐뷰티, 바루랩)
+            brand_order = ['피더린', '탐뷰티', '바루랩']
+            sorted_brands = [b for b in brand_order if b in products_by_brand] + [b for b in brands if b not in brand_order]
+            
+            # 제품 추가용 세션 상태 초기화
+            if 'manual_products' not in st.session_state:
+                st.session_state.manual_products = {brand: [] for brand in brand_order}
+            
+            # 브랜드별 접는 형식으로 제품 표시
+            st.markdown("### 📝 제품 매칭 확인 및 조정")
+            
+            for brand in sorted_brands:
+                if brand not in products_by_brand:
+                    products_by_brand[brand] = []
                 
-                # 선택 요약
-                selected_count = sum(1 for p in st.session_state.selected_products.values() if p.get('selected', False))
-                total_quantity = sum(p['quantity'] for p in st.session_state.selected_products.values() if p.get('selected', False))
-                st.info(f"✅ 총 {selected_count}개 제품이 선택되었습니다. (전체 {len(all_products_list)}개 중) | 선택된 총 수량: {total_quantity}개")
+                brand_products = products_by_brand[brand]
+                manual_products = st.session_state.manual_products.get(brand, [])
+                total_brand_products = len(brand_products) + len(manual_products)
+                
+                with st.expander(f"🏷️ {brand} 브랜드 ({total_brand_products}개 제품)", expanded=True):
+                    # 기존 매칭된 제품 테이블 형식으로 표시
+                    if brand_products:
+                        # 테이블 헤더
+                        cols = st.columns([0.5, 3, 1, 1.5, 1, 1])
+                        cols[0].write("**포함**")
+                        cols[1].write("**제품명**")
+                        cols[2].write("**품목코드**")
+                        cols[3].write("**원본 수량**")
+                        cols[4].write("**조정 수량**")
+                        cols[5].write("**신뢰도**")
+                        st.markdown("---")
+                        
+                        # 각 제품을 행으로 표시
+                        for product in brand_products:
+                            product_key = product['key']
+                            
+                            cols = st.columns([0.5, 3, 1, 1.5, 1, 1])
+                            
+                            # 포함 체크박스
+                            with cols[0]:
+                                selected = st.checkbox(
+                                    "",
+                                    value=st.session_state.selected_products[product_key]['selected'],
+                                    key=f"checkbox_{product_key}",
+                                    label_visibility="collapsed"
+                                )
+                                st.session_state.selected_products[product_key]['selected'] = selected
+                            
+                            # 제품명
+                            with cols[1]:
+                                st.write(product['제품명'])
+                            
+                            # 품목코드
+                            with cols[2]:
+                                st.write(product['품목코드'])
+                            
+                            # 원본 수량
+                            with cols[3]:
+                                st.write(f"{product['수량']}개")
+                            
+                            # 수량 조정
+                            with cols[4]:
+                                if selected:
+                                    quantity = st.number_input(
+                                        "",
+                                        min_value=0,
+                                        value=int(st.session_state.selected_products[product_key]['quantity']),
+                                        key=f"quantity_{product_key}",
+                                        label_visibility="collapsed"
+                                    )
+                                    st.session_state.selected_products[product_key]['quantity'] = quantity
+                                else:
+                                    st.write("-")
+                            
+                            # 신뢰도
+                            with cols[5]:
+                                st.write(f"{product['신뢰도']}%")
+                            
+                st.markdown("---")
+                
+                    # 수동 추가 제품 표시
+                    if manual_products:
+                        st.markdown("#### 수동 추가된 제품")
+                        for idx, manual_product in enumerate(manual_products):
+                            manual_key = f"manual_{brand}_{idx}"
+                            
+                            cols = st.columns([0.5, 2, 1, 1.5, 1, 1])
+                            
+                            with cols[0]:
+                                selected = st.checkbox(
+                                    "",
+                                    value=st.session_state.selected_products.get(manual_key, {}).get('selected', True),
+                                    key=f"checkbox_{manual_key}",
+                                    label_visibility="collapsed"
+                                )
+                                if manual_key not in st.session_state.selected_products:
+                                    st.session_state.selected_products[manual_key] = {'selected': True, 'quantity': manual_product.get('quantity', 0)}
+                                st.session_state.selected_products[manual_key]['selected'] = selected
+                            
+                            with cols[1]:
+                                product_name = st.text_input(
+                                    "제품명",
+                                    value=manual_product.get('제품명', ''),
+                                    key=f"name_{manual_key}",
+                                    label_visibility="collapsed"
+                                )
+                                manual_product['제품명'] = product_name
+                            
+                            with cols[2]:
+                                product_code = st.text_input(
+                                    "품목코드",
+                                    value=manual_product.get('품목코드', ''),
+                                    key=f"code_{manual_key}",
+                                    label_visibility="collapsed"
+                                )
+                                manual_product['품목코드'] = product_code
+                            
+                            with cols[3]:
+                                st.write("-")
+                            
+                            with cols[4]:
+                                if selected:
+                                    quantity = st.number_input(
+                                        "수량",
+                                        min_value=0,
+                                        value=int(st.session_state.selected_products[manual_key].get('quantity', manual_product.get('quantity', 0))),
+                                        key=f"quantity_{manual_key}",
+                                        label_visibility="collapsed"
+                                    )
+                                    st.session_state.selected_products[manual_key]['quantity'] = quantity
+                                else:
+                                    st.write("-")
+                            
+                            with cols[5]:
+                                if st.button("🗑️", key=f"delete_{manual_key}", help="삭제"):
+                                    st.session_state.manual_products[brand].remove(manual_product)
+                                    if manual_key in st.session_state.selected_products:
+                                        del st.session_state.selected_products[manual_key]
+                                    st.rerun()
+                                else:
+                                    st.write("-")
+                            
+                            st.markdown("---")
+                    
+                    # 제품 추가 버튼
+                    if st.button(f"➕ {brand} 제품 추가", key=f"add_{brand}"):
+                        if brand not in st.session_state.manual_products:
+                            st.session_state.manual_products[brand] = []
+                        st.session_state.manual_products[brand].append({
+                            '브랜드': brand,
+                            '제품명': '',
+                            '품목코드': '',
+                            '수량': 0
+                        })
+                        st.rerun()
+            
+            # 선택 요약
+            selected_count = sum(1 for p in st.session_state.selected_products.values() if p.get('selected', False))
+            total_quantity = sum(p['quantity'] for p in st.session_state.selected_products.values() if p.get('selected', False))
+            st.info(f"✅ 총 {selected_count}개 제품이 선택되었습니다. (전체 {len(all_products_list) + sum(len(p) for p in st.session_state.manual_products.values())}개 중) | 선택된 총 수량: {total_quantity}개")
             
             # 최종 확인 버튼
             if st.button("✅ 최종 확인 및 Excel 생성", type="primary", key="final_confirm"):
@@ -364,6 +486,8 @@ def main():
                 }
                 
                 # 선택된 제품만 집계
+                all_brands_in_filter = set()
+                
                 for brand in brands:
                     brand_products = []
                     for product in aggregated_by_brand.get(brand, []):
@@ -375,9 +499,60 @@ def main():
                                 modified_product['총_수량'] = st.session_state.selected_products[product_key].get('quantity', product.get('총_수량', 0))
                                 brand_products.append(modified_product)
                     
+                    # 수동 추가된 제품 추가
+                    if brand in st.session_state.manual_products:
+                        for idx, manual_product in enumerate(st.session_state.manual_products[brand]):
+                            manual_key = f"manual_{brand}_{idx}"
+                            if manual_key in st.session_state.selected_products:
+                                if st.session_state.selected_products[manual_key].get('selected', False):
+                                    # 수동 추가 제품을 Excel 형식에 맞게 변환
+                                    manual_excel_product = {
+                                        '품목코드': manual_product.get('품목코드', ''),
+                                        '제품명': manual_product.get('제품명', ''),
+                                        '총_수량': st.session_state.selected_products[manual_key].get('quantity', 0),
+                                        '신뢰도': 0,
+                                        '출처_수': 1,
+                                        '출처_목록': ['manual'],
+                                        '상세_정보': [{
+                                            'product_name': manual_product.get('제품명', ''),
+                                            'quantity': st.session_state.selected_products[manual_key].get('quantity', 0),
+                                            'source': 'manual'
+                                        }]
+                                    }
+                                    brand_products.append(manual_excel_product)
+                    
                     if brand_products:
                         filtered_data['aggregated_by_brand'][brand] = brand_products
-                        filtered_data['brands'].append(brand)
+                        all_brands_in_filter.add(brand)
+                
+                # 수동 추가 제품이 있는 브랜드도 포함
+                for brand in st.session_state.manual_products.keys():
+                    if brand not in all_brands_in_filter:
+                        manual_brand_products = []
+                        for idx, manual_product in enumerate(st.session_state.manual_products[brand]):
+                            manual_key = f"manual_{brand}_{idx}"
+                            if manual_key in st.session_state.selected_products:
+                                if st.session_state.selected_products[manual_key].get('selected', False):
+                                    manual_excel_product = {
+                                        '품목코드': manual_product.get('품목코드', ''),
+                                        '제품명': manual_product.get('제품명', ''),
+                                        '총_수량': st.session_state.selected_products[manual_key].get('quantity', 0),
+                                        '신뢰도': 0,
+                                        '출처_수': 1,
+                                        '출처_목록': ['manual'],
+                                        '상세_정보': [{
+                                            'product_name': manual_product.get('제품명', ''),
+                                            'quantity': st.session_state.selected_products[manual_key].get('quantity', 0),
+                                            'source': 'manual'
+                                        }]
+                                    }
+                                    manual_brand_products.append(manual_excel_product)
+                        
+                        if manual_brand_products:
+                            filtered_data['aggregated_by_brand'][brand] = manual_brand_products
+                            all_brands_in_filter.add(brand)
+                
+                filtered_data['brands'] = list(all_brands_in_filter)
                 
                 if not filtered_data['brands']:
                     st.error("선택된 제품이 없습니다. 최소 1개 이상의 제품을 선택해주세요.")
@@ -414,7 +589,7 @@ def main():
             st.markdown("---")
             st.subheader("📥 파일 다운로드")
             
-            st.download_button(
+                    st.download_button(
                 label="📥 Excel 파일 다운로드 (ZIP)",
                 data=st.session_state.excel_zip,
                 file_name=st.session_state.excel_filename,
