@@ -13,9 +13,18 @@ class SlackFetcher:
             # API 키가 직접 제공된 경우
             self.config = api_keys
         else:
-            # config.json 파일에서 읽기
-            with open(config_path, 'r', encoding='utf-8') as f:
-                self.config = json.load(f)
+            # config.json 파일에서 읽기 (파일이 있는 경우에만)
+            if os.path.exists(config_path):
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    self.config = json.load(f)
+            else:
+                # 파일이 없으면 빈 설정으로 초기화
+                self.config = {
+                    'slack_bot_token': '',
+                    'channel_id': '',
+                    'openai_api_key': '',
+                    'warehouse_code': '100'
+                }
         
         self.headers = {
             "Authorization": f"Bearer {self.config['slack_bot_token']}"
