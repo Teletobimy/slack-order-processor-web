@@ -182,14 +182,14 @@ def main():
                 return
             
             # 진행 상황 표시
-                    progress_bar = st.progress(0)
-                    status_text = st.empty()
-                    
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
             try:
                 # 1. Slack 데이터 수집
                 status_text.text("📡 Slack 데이터 수집 중...")
-                    progress_bar.progress(10)
-                    
+                progress_bar.progress(10)
+                
                 fetcher = SlackFetcher(config)
                 fetcher.channel_id = channel_id
                 
@@ -197,8 +197,8 @@ def main():
                     start_date.strftime('%Y-%m-%d'),
                     end_date.strftime('%Y-%m-%d')
                 )
-                    
-                    if not messages:
+                
+                if not messages:
                     st.warning("선택한 기간에 메시지가 없습니다.")
                     return
                 
@@ -213,13 +213,13 @@ def main():
                 
                 # 3. 데이터 집계
                 status_text.text("📊 데이터 집계 중...")
-                    progress_bar.progress(60)
-                    
+                progress_bar.progress(60)
+                
                 aggregator = DataAggregator(config)
-                    aggregated_data = aggregator.aggregate_products(processed_messages)
-                    
-                    # 세션 상태에 저장
-                    st.session_state.aggregated_data = aggregated_data
+                aggregated_data = aggregator.aggregate_products(processed_messages)
+                
+                # 세션 상태에 저장
+                st.session_state.aggregated_data = aggregated_data
                 st.session_state.show_validation = True
                 st.session_state.excel_ready = False
                 
